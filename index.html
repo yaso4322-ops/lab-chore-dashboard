@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lab Chore Dashboard · CU Boulder</title>
+  <script src="config.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #080b12;
+      --panel:    #0e131f;
+      --panel-hi: #131a2a;
+      --line:     #1e2740;
+      --text:     #e7ecf5;
+      --muted:    #8a97b4;
+      --cyan:     #34e7e4;
+      --violet:   #a779ff;
+      --lime:     #9bf24b;
+      --amber:    #ffce5c;
+    }
+
+    html, body {
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    /* ambient background glows */
+    body::before, body::after {
+      content: '';
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(90px);
+      opacity: 0.45;
+      pointer-events: none;
+      z-index: 0;
+    }
+    body::before {
+      width: 520px; height: 520px;
+      background: radial-gradient(circle, #1b6f8f, transparent 70%);
+      top: -180px; right: -120px;
+    }
+    body::after {
+      width: 480px; height: 480px;
+      background: radial-gradient(circle, #5b3b9e, transparent 70%);
+      bottom: -160px; left: -140px;
+    }
+
+    #confetti {
+      position: fixed; inset: 0;
+      pointer-events: none;
+      z-index: 60;
+    }
+
+    .wrap {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 34px 20px 56px;
+      position: relative;
+      z-index: 2;
+    }
+
+    /* ── Header ─────────────────────────────────────────────── */
+    .head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 26px;
+    }
+    .eyebrow {
+      font-size: 11px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    h1.title {
+      font-size: 34px;
+      line-height: 1.05;
+      margin-top: 6px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      background: linear-gradient(90deg, #fff, var(--cyan));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .weekchip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12.5px;
+      color: var(--muted);
+      border: 1px solid var(--line);
+      background: var(--panel);
+      padding: 7px 14px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+    .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 10px var(--cyan);
+      flex-shrink: 0;
+    }
+
+    /* ── Progress meter ─────────────────────────────────────── */
+    .meter {
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, var(--panel-hi), var(--panel));
+      border-radius: 18px;
+      padding: 22px 24px;
+      margin-bottom: 10px;
+      transition: border-color 0.4s;
+    }
+    .meter.complete { border-color: rgba(155,242,75,0.45); }
+
+    .meter-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .meter-label {
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 700;
+    }
+    .meter-sub {
+      font-size: 15px;
+      color: var(--text);
+      margin-top: 5px;
+      font-weight: 500;
+    }
+    .meter-pct {
+      font-size: 42px;
+      font-weight: 800;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      color: var(--cyan);
+      text-shadow: 0 0 22px rgba(52,231,228,0.35);
+      white-space: nowrap;
+    }
+    .meter-pct sup { font-size: 18px; color: var(--muted); }
+
+    .segs { display: flex; gap: 6px; }
+    .seg {
+      flex: 1;
+      height: 12px;
+      border-radius: 6px;
+      background: #10182a;
+      border: 1px solid var(--line);
+      transition: all 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    .seg.on {
+      background: linear-gradient(90deg, var(--cyan), #5ad6ff);
+      border-color: transparent;
+      box-shadow: 0 0 14px rgba(52,231,228,0.55), inset 0 0 6px rgba(255,255,255,0.25);
+    }
+    .meter.complete .seg.on {
+      background: linear-gradient(90deg, var(--lime), #c6ff7a);
+      box-shadow: 0 0 16px rgba(155,242,75,0.6);
+    }
+
+    .badge {
+      display: none;
+      margin-top: 18px;
+      align-items: center;
+      gap: 9px;
+      font-weight: 700;
+      font-size: 14px;
+      color: #0a0f08;
+      background: linear-gradient(90deg, var(--lime), #d6ff8a);
+      padding: 10px 18px;
+      border-radius: 999px;
+      box-shadow: 0 0 26px rgba(155,242,75,0.5);
+      animation: pop 0.5s cubic-bezier(0.2, 1.4, 0.4, 1);
+    }
+    .badge.show { display: inline-flex; }
+    @keyframes pop {
+      0%   { transform: scale(0.7); opacity: 0; }
+      100% { transform: scale(1);   opacity: 1; }
+    }
+
+    /* ── Sync status ────────────────────────────────────────── */
+    .sync-bar {
+      font-size: 11.5px;
+      color: var(--muted);
+      text-align: right;
+      padding: 6px 2px 16px;
+      min-height: 32px;
+      transition: color 0.3s;
+    }
+    .sync-bar.err { color: var(--amber); }
+
+    /* ── Chore grid ─────────────────────────────────────────── */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+      margin-bottom: 26px;
+    }
+    @media (max-width: 620px) { .grid { grid-template-columns: 1fr; } }
+
+    /* ── Card ───────────────────────────────────────────────── */
+    .card {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      border-radius: 15px;
+      padding: 16px;
+      transition: border-color 0.3s, transform 0.25s;
+    }
+    .card:hover { border-color: rgba(52,231,228,0.3); transform: translateY(-2px); }
+    .card.done {
+      border-color: rgba(155,242,75,0.3);
+      background: linear-gradient(180deg, rgba(155,242,75,0.05), var(--panel));
+    }
+
+    .card-main { display: flex; align-items: flex-start; gap: 12px; }
+
+    .card-ico {
+      width: 38px; height: 38px;
+      flex-shrink: 0;
+      display: grid; place-items: center;
+      font-size: 18px;
+      border-radius: 11px;
+      background: #10192c;
+      border: 1px solid var(--line);
+    }
+    .card.done .card-ico { border-color: rgba(155,242,75,0.3); }
+
+    .card-body { flex: 1; min-width: 0; }
+    .card-name { font-weight: 700; font-size: 16px; letter-spacing: -0.01em; }
+
+    .avatars { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+    .ava {
+      position: relative;
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      display: grid; place-items: center;
+      font-size: 10px; font-weight: 700;
+      background: #1a2238;
+      border: 1px solid var(--line);
+      color: var(--text);
+      cursor: default;
+    }
+    .ava .tip {
+      position: absolute;
+      bottom: 135%; left: 50%;
+      transform: translateX(-50%);
+      background: #000; color: #fff;
+      font-size: 11px;
+      padding: 3px 8px; border-radius: 6px;
+      white-space: nowrap;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.15s;
+      border: 1px solid var(--line);
+      z-index: 10;
+    }
+    .ava:hover .tip { opacity: 1; }
+
+    .check-btn {
+      width: 30px; height: 30px;
+      flex-shrink: 0;
+      border-radius: 9px;
+      border: 1.5px solid var(--line);
+      background: #0c1322;
+      cursor: pointer;
+      display: grid; place-items: center;
+      font-size: 15px;
+      color: transparent;
+      transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+    }
+    .check-btn:hover { border-color: var(--cyan); }
+    .check-btn.on {
+      background: linear-gradient(135deg, var(--lime), #c6ff7a);
+      border-color: transparent;
+      box-shadow: 0 0 16px rgba(155,242,75,0.5);
+      color: #0a0f08;
+    }
+
+    .disclose {
+      margin-top: 13px;
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: none;
+      border: none;
+      border-top: 1px solid var(--line);
+      padding: 11px 0 0;
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 12.5px;
+      font-weight: 600;
+      font-family: inherit;
+    }
+    .disclose:hover { color: var(--cyan); }
+    .chev { display: inline-block; transition: transform 0.25s; font-style: normal; }
+    .chev.open { transform: rotate(180deg); }
+
+    .detail {
+      margin-top: 12px;
+      animation: slideIn 0.22s ease;
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to   { opacity: 1; transform: none; }
+    }
+    .detail-blurb { font-size: 13px; color: var(--text); opacity: 0.85; margin-bottom: 10px; line-height: 1.5; }
+    .detail-steps { padding-left: 17px; display: grid; gap: 7px; }
+    .detail-steps li { font-size: 12.5px; color: var(--muted); line-height: 1.55; }
+
+    /* ── Panel (incubators + always) ────────────────────────── */
+    .panel {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      border-radius: 15px;
+      padding: 18px 20px;
+      margin-bottom: 14px;
+    }
+    .panel-head {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin-bottom: 12px;
+    }
+    .panel-ico { font-size: 16px; }
+    .panel-head h2 { font-size: 15px; font-weight: 700; flex: 1; }
+    .pending-chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em;
+      color: var(--amber);
+      border: 1px solid rgba(255,206,92,0.3);
+      background: rgba(255,206,92,0.08);
+      padding: 4px 10px; border-radius: 999px; font-weight: 700;
+    }
+    .panel-note { font-size: 13px; color: var(--muted); margin-bottom: 14px; line-height: 1.5; }
+    .inc-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+    .inc {
+      width: 42px; height: 42px;
+      display: grid; place-items: center;
+      border-radius: 11px;
+      background: #10192c;
+      border: 1px dashed var(--line);
+      color: var(--muted);
+      font-weight: 700; font-size: 14px;
+      font-family: ui-monospace, monospace;
+    }
+    .panel-fine { font-size: 12px; color: var(--muted); line-height: 1.6; opacity: 0.8; }
+
+    .always-list { padding-left: 18px; display: grid; gap: 9px; }
+    .always-list li { font-size: 13px; color: var(--muted); line-height: 1.55; }
+
+    /* ── Footer ─────────────────────────────────────────────── */
+    .foot { margin-top: 20px; text-align: center; display: grid; gap: 7px; }
+    .foot-line { font-size: 12.5px; color: var(--text); opacity: 0.75; }
+    .foot-fine  { font-size: 11.5px; color: var(--muted); opacity: 0.65; }
+  </style>
+</head>
+<body>
+  <canvas id="confetti"></canvas>
+
+  <div class="wrap">
+
+    <!-- Header -->
+    <header class="head">
+      <div>
+        <div class="eyebrow">Tissue Engineering Lab · Operations</div>
+        <h1 class="title">Lab Chore Deck</h1>
+      </div>
+      <div class="weekchip">
+        <span class="dot"></span>
+        <span id="week-label">—</span>
+      </div>
+    </header>
+
+    <!-- Progress meter -->
+    <section class="meter" id="meter">
+      <div class="meter-top">
+        <div>
+          <div class="meter-label" id="meter-label">Team completion</div>
+          <div class="meter-sub"  id="meter-sub">Loading…</div>
+        </div>
+        <div class="meter-pct" id="meter-pct">0<sup>%</sup></div>
+      </div>
+      <div class="segs" id="segs"></div>
+      <div class="badge" id="badge">✓ &nbsp;Week cleared — great work, team! 🎉</div>
+    </section>
+
+    <!-- Sync status -->
+    <div class="sync-bar" id="sync-bar"></div>
+
+    <!-- Chore grid (generated from config.js) -->
+    <section class="grid" id="grid"></section>
+
+    <!-- Incubators -->
+    <section class="panel">
+      <div class="panel-head">
+        <span class="panel-ico">🌡️</span>
+        <h2>Incubator cleaning</h2>
+        <span class="pending-chip">🔒 Schedule pending</span>
+      </div>
+      <p class="panel-note">
+        Rotation for these is still being worked out — it'll appear here once the cadence is confirmed.
+      </p>
+      <div class="inc-row" id="inc-row"></div>
+      <p class="panel-fine">
+        <strong>#1–#7:</strong> follow the manual, scrub pieces to remove rust, wipe with 3% H₂O₂ in distilled water.<br>
+        <strong>#8:</strong> all of the above, plus autoclave every piece.
+      </p>
+    </section>
+
+    <!-- Everyone always -->
+    <section class="panel">
+      <div class="panel-head">
+        <span class="panel-ico">⚠️</span>
+        <h2>Everyone, always</h2>
+      </div>
+      <ul class="always-list" id="always-list"></ul>
+    </section>
+
+    <!-- Footer -->
+    <footer class="foot">
+      <div class="foot-line">📧 Reminders go out Thursday · the team meter closes Friday night</div>
+      <div class="foot-fine">Assignments are drawn at random each quarter and locked until the next reshuffle.</div>
+    </footer>
+
+  </div><!-- /wrap -->
+
+  <script>
+    // ── Week info ────────────────────────────────────────────────────────
+    function getWeekInfo() {
+      var now = new Date();
+      var day = now.getDay();
+      var diffToMon = (day === 0 ? -6 : 1 - day);
+      var mon = new Date(now); mon.setDate(now.getDate() + diffToMon);
+      var fri = new Date(mon); fri.setDate(mon.getDate() + 4);
+      var fmt = function(d) {
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      };
+      var year = fri.getFullYear();
+      var soy  = new Date(year, 0, 1);
+      var wnum = Math.ceil((((mon - soy) / 86400000) + 1) / 7);
+      var id   = year + '-W' + (wnum < 10 ? '0' : '') + wnum;
+      return { label: 'Week of ' + fmt(mon) + ' \u2013 ' + fmt(fri) + ', ' + year, id: id };
+    }
+
+    var week       = getWeekInfo();
+    var WEEK_LABEL = week.label;
+    var WEEK_ID    = week.id;
+    var LS_KEY     = 'choreState_' + WEEK_ID;
+    var TOTAL      = CONFIG.CHORES.length;
+
+    // ── Local state ──────────────────────────────────────────────────────
+    var state      = {};
+    var celebrated = false;
+
+    function loadLocal() {
+      try { return JSON.parse(localStorage.getItem(LS_KEY) || '{}'); } catch(e) { return {}; }
+    }
+    function saveLocal() {
+      try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch(e) {}
+    }
+
+    // ── Build DOM ────────────────────────────────────────────────────────
+    function buildGrid() {
+      document.getElementById('week-label').textContent = WEEK_LABEL;
+
+      // Progress segments (one per chore)
+      var segs = document.getElementById('segs');
+      CONFIG.CHORES.forEach(function(c) {
+        var s = document.createElement('div');
+        s.className = 'seg'; s.id = 'seg-' + c.id;
+        segs.appendChild(s);
+      });
+
+      // Chore cards
+      var grid = document.getElementById('grid');
+      CONFIG.CHORES.forEach(function(c) {
+        var people  = CONFIG.ASSIGNMENTS[c.id] || [];
+        var avatars = people.map(function(p) {
+          var initials = p.split(' ').map(function(w){ return w[0]; }).join('').slice(0,2);
+          return '<span class="ava">' + initials + '<span class="tip">' + p + '</span></span>';
+        }).join('');
+
+        var card = document.createElement('article');
+        card.className = 'card';
+        card.id        = 'card-' + c.id;
+        card.innerHTML =
+          '<div class="card-main">' +
+            '<div class="card-ico" id="ico-' + c.id + '">' + c.icon + '</div>' +
+            '<div class="card-body">' +
+              '<div class="card-name">' + c.name + '</div>' +
+              '<div class="avatars">' + avatars + '</div>' +
+            '</div>' +
+            '<button class="check-btn" id="chk-' + c.id + '" ' +
+              'onclick="toggle(\'' + c.id + '\')" ' +
+              'aria-label="Mark ' + c.name + ' done">&#10003;</button>' +
+          '</div>' +
+          '<button class="disclose" onclick="toggleDetail(\'' + c.id + '\')">' +
+            '<span id="dt-' + c.id + '">What this involves</span>' +
+            '<i class="chev" id="chev-' + c.id + '">&#9662;</i>' +
+          '</button>' +
+          '<div class="detail" id="det-' + c.id + '" style="display:none">' +
+            '<p class="detail-blurb">' + c.blurb + '</p>' +
+            '<ul class="detail-steps">' +
+              c.steps.map(function(s){ return '<li>' + s + '</li>'; }).join('') +
+            '</ul>' +
+          '</div>';
+        grid.appendChild(card);
+      });
+
+      // Incubators
+      var incRow = document.getElementById('inc-row');
+      CONFIG.INCUBATORS.units.forEach(function(u) {
+        var span = document.createElement('span');
+        span.className   = 'inc';
+        span.textContent = u;
+        incRow.appendChild(span);
+      });
+
+      // Always list
+      var alwaysList = document.getElementById('always-list');
+      CONFIG.ALWAYS.forEach(function(a) {
+        var li = document.createElement('li');
+        li.textContent = a;
+        alwaysList.appendChild(li);
+      });
+    }
+
+    // ── Update UI ────────────────────────────────────────────────────────
+    function updateUI() {
+      var done     = CONFIG.CHORES.filter(function(c){ return state[c.id]; }).length;
+      var pct      = Math.round((done / TOTAL) * 100);
+      var complete = done === TOTAL;
+
+      document.getElementById('meter-pct').innerHTML = pct + '<sup>%</sup>';
+      document.getElementById('meter-label').textContent = complete ? 'Sterility locked' : 'Team completion';
+      document.getElementById('meter-sub').textContent   = complete
+        ? 'Every chore checked off \u2014 nice work.'
+        : done + ' of ' + TOTAL + ' chores complete';
+      document.getElementById('meter').className = complete ? 'meter complete' : 'meter';
+
+      var badge = document.getElementById('badge');
+      if (complete) badge.classList.add('show'); else badge.classList.remove('show');
+
+      CONFIG.CHORES.forEach(function(c) {
+        var seg  = document.getElementById('seg-' + c.id);
+        var card = document.getElementById('card-' + c.id);
+        var chk  = document.getElementById('chk-' + c.id);
+        if (seg)  seg.className  = state[c.id] ? 'seg on' : 'seg';
+        if (card) card.className = state[c.id] ? 'card done' : 'card';
+        if (chk)  chk.className  = state[c.id] ? 'check-btn on' : 'check-btn';
+      });
+
+      if (complete && !celebrated) { celebrated = true; confettiBurst(); }
+      if (!complete) celebrated = false;
+    }
+
+    // ── Accordion ────────────────────────────────────────────────────────
+    function toggleDetail(id) {
+      var det  = document.getElementById('det-'  + id);
+      var chev = document.getElementById('chev-' + id);
+      var txt  = document.getElementById('dt-'   + id);
+      if (!det) return;
+      var isOpen = det.style.display !== 'none';
+      det.style.display = isOpen ? 'none' : 'block';
+      chev.className    = isOpen ? 'chev' : 'chev open';
+      txt.textContent   = isOpen ? 'What this involves' : 'Hide details';
+    }
+
+    // ── Toggle check-off ─────────────────────────────────────────────────
+    function toggle(id) {
+      state[id] = !state[id];
+      saveLocal();
+      updateUI();
+      pushToServer(id, state[id]);
+    }
+
+    // ── Server sync (Apps Script) ────────────────────────────────────────
+    // Writes: GET with mode no-cors (fire-and-forget). Works from any real origin.
+    function pushToServer(id, val) {
+      if (!CONFIG.APPS_SCRIPT_URL) return;
+      var url = CONFIG.APPS_SCRIPT_URL +
+        '?action=set&week=' + encodeURIComponent(WEEK_ID) +
+        '&id=' + encodeURIComponent(id) +
+        '&done=' + val;
+      fetch(url, { mode: 'no-cors' }).catch(function(){});
+    }
+
+    // Reads: JSONP so the response is readable cross-origin without a preflight.
+    function fetchFromServer() {
+      if (!CONFIG.APPS_SCRIPT_URL) return;
+      var cbName = '_lc' + Date.now();
+      var script = document.createElement('script');
+      var done   = false;
+      var timer;
+
+      window[cbName] = function(data) {
+        done = true; clearTimeout(timer);
+        delete window[cbName];
+        if (script.parentNode) script.parentNode.removeChild(script);
+        // Merge: remote is authoritative; local optimistic updates respected for
+        // 60 s while the push propagates (handled by server-wins after that).
+        var changed = false;
+        CONFIG.CHORES.forEach(function(c) {
+          var remoteVal = !!data[c.id];
+          if (remoteVal !== !!state[c.id]) { state[c.id] = remoteVal; changed = true; }
+        });
+        if (changed) { saveLocal(); updateUI(); }
+        setSyncStatus('ok');
+      };
+
+      script.onerror = function() {
+        if (!done) {
+          done = true; clearTimeout(timer);
+          delete window[cbName];
+          if (script.parentNode) script.parentNode.removeChild(script);
+          setSyncStatus('err');
+        }
+      };
+
+      timer = setTimeout(function() {
+        if (!done) {
+          done = true;
+          delete window[cbName];
+          if (script.parentNode) script.parentNode.removeChild(script);
+          setSyncStatus('err');
+        }
+      }, 7000);
+
+      script.src = CONFIG.APPS_SCRIPT_URL +
+        '?action=get&week=' + encodeURIComponent(WEEK_ID) +
+        '&callback=' + cbName;
+      setSyncStatus('syncing');
+      document.head.appendChild(script);
+    }
+
+    function setSyncStatus(s) {
+      var bar = document.getElementById('sync-bar');
+      if (s === 'ok') {
+        bar.className   = 'sync-bar';
+        bar.textContent = 'Synced \u00b7 ' + new Date().toLocaleTimeString();
+      } else if (s === 'syncing') {
+        bar.className   = 'sync-bar';
+        bar.textContent = 'Syncing\u2026';
+      } else {
+        bar.className   = 'sync-bar err';
+        bar.textContent = 'Using saved state \u2014 live sync unavailable';
+      }
+    }
+
+    // ── Confetti ─────────────────────────────────────────────────────────
+    function confettiBurst() {
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      var canvas = document.getElementById('confetti');
+      var ctx    = canvas.getContext('2d');
+      canvas.width  = window.innerWidth;
+      canvas.height = window.innerHeight;
+      var colors = ['#34e7e4','#a779ff','#9bf24b','#ffce5c','#ffffff'];
+      var P = [];
+      for (var n = 0; n < 140; n++) {
+        P.push({
+          x:    window.innerWidth  / 2,
+          y:    window.innerHeight * 0.35,
+          vx:   (Math.random() - 0.5) * 14,
+          vy:   Math.random() * -14 - 4,
+          r:    Math.random() * 4 + 2,
+          c:    colors[Math.random() * colors.length | 0],
+          life: 1
+        });
+      }
+      var raf;
+      (function tick() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        var live = false;
+        P.forEach(function(p) {
+          if (p.life <= 0) return; live = true;
+          p.vy += 0.32; p.x += p.vx; p.y += p.vy; p.life -= 0.012;
+          ctx.globalAlpha = Math.max(p.life, 0);
+          ctx.fillStyle   = p.c;
+          ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+        });
+        ctx.globalAlpha = 1;
+        if (live) raf = requestAnimationFrame(tick);
+        else ctx.clearRect(0, 0, canvas.width, canvas.height);
+      })();
+    }
+
+    // ── Init ─────────────────────────────────────────────────────────────
+    state = loadLocal();
+    buildGrid();
+    updateUI();
+    fetchFromServer();
+    setInterval(fetchFromServer, 30000); // sync every 30 s
+  </script>
+</body>
+</html>
