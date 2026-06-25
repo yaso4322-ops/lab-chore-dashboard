@@ -23,7 +23,7 @@ const CONFIG = {
   // ── APPS SCRIPT URL ────────────────────────────────────────────────────
   // Your deployed Apps Script Web App URL (ends in /exec).
   // Only needs changing if you create a brand-new deployment.
-  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbxA87ZptYoSttgFQBGFJdj2td--KLRWAnHwlVX2tvuWOxXApMofQP7QpxhSpM2SNg7A/exec",
+  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbxBwwA1Ml7wb8u9VndxZU7VTz7J3gQDMx4Dj8a26Utaw9LdBur4qlNQHsWAaeeOpX6D/exec",
 
   // ── ADMIN ──────────────────────────────────────────────────────────────
   // Your email — reply-to address on all outgoing lab emails.
