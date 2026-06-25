@@ -372,18 +372,33 @@
     }
 
     // ── Server sync ───────────────────────────────────────────────────────
-    function pushToServer(choreId,person,val){
-      if(!CONFIG.APPS_SCRIPT_URL) return;
-      var url=CONFIG.APPS_SCRIPT_URL
-        +'?action=set&week='+encodeURIComponent(WEEK_ID)
-        +'&id='+encodeURIComponent(choreId)
-        +'&person='+encodeURIComponent(person)
-        +'&done='+val;
-      fetch(url,{mode:'no-cors'}).catch(function(){});
+    var lastWrite = 0; // timestamp of last push — guards against stale reads
+
+    function pushToServer(choreId, person, val) {
+      if (!CONFIG.APPS_SCRIPT_URL) return;
+      lastWrite = Date.now();
+      var url = CONFIG.APPS_SCRIPT_URL
+        + '?action=set&week=' + encodeURIComponent(WEEK_ID)
+        + '&id='     + encodeURIComponent(choreId)
+        + '&person=' + encodeURIComponent(person)
+        + '&done='   + val
+        + '&t='      + Date.now(); // cache-buster
+      // Use script tag (same mechanism as reads) — avoids no-cors fetch failures
+      var s = document.createElement('script');
+      s.src = url;
+      s.onload = s.onerror = function() {
+        if (s.parentNode) s.parentNode.removeChild(s);
+        // Confirm write landed: clear guard then pull server state
+        lastWrite = 0;
+        fetchFromServer();
+      };
+      document.head.appendChild(s);
     }
 
     function fetchFromServer(){
       if(!CONFIG.APPS_SCRIPT_URL) return;
+      // Don't overwrite local while a write is still in-flight
+      if(Date.now() - lastWrite < 8000) return;
       var cb='_lc'+Date.now(), done=false, timer;
       var script=document.createElement('script');
 
