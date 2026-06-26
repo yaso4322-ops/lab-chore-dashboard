@@ -372,31 +372,19 @@
     }
 
     // ── Server sync ───────────────────────────────────────────────────────
-    var pendingWrite = false; // true while a write is in-flight
-
     function pushToServer(choreId, person, val) {
       if (!CONFIG.APPS_SCRIPT_URL) return;
-      pendingWrite = true;
-
       var cbName = '_wr' + Date.now();
       var s = document.createElement('script');
       var settled = false;
-
-      // Called on success, error, or timeout — cleans up and releases the guard
-      function finish(confirmed) {
-        if (settled) return;
-        settled = true; pendingWrite = false;
+      function finish() {
+        if (settled) return; settled = true;
         delete window[cbName];
         if (s.parentNode) s.parentNode.removeChild(s);
-        // Only pull server state if write was confirmed by the JSONP callback
-        if (confirmed) setTimeout(fetchFromServer, 600);
       }
-
-      // Apps Script returns _wr123({"ok":true}) — valid JSONP
-      window[cbName] = function() { finish(true); };
-      s.onerror     = function() { finish(false); };
-      setTimeout(function() { finish(false); }, 10000); // failsafe
-
+      window[cbName] = finish;
+      s.onerror = finish;
+      setTimeout(finish, 10000);
       s.src = CONFIG.APPS_SCRIPT_URL
         + '?action=set'
         + '&week='     + encodeURIComponent(WEEK_ID)
@@ -410,7 +398,6 @@
 
     function fetchFromServer(){
       if(!CONFIG.APPS_SCRIPT_URL) return;
-      if(pendingWrite) return; // don't overwrite local while a write is in-flight
       var cb='_lc'+Date.now(), done=false, timer;
       var script=document.createElement('script');
 
@@ -418,7 +405,7 @@
         done=true; clearTimeout(timer); delete window[cb];
         if(script.parentNode) script.parentNode.removeChild(script);
 
-        // Update streak chip
+        // Streak chip
         if(typeof data.streak==='number'){
           var chip=document.getElementById('streak-chip');
           var val=document.getElementById('streak-val');
@@ -428,18 +415,22 @@
           } else { chip.classList.add('hidden'); }
         }
 
-        // Merge state (remote authoritative)
+        // Additive merge: remote can only ADD check-ins, never remove them.
+        // This means a sync can never uncheck something the user just checked,
+        // regardless of server timing. Unchecking is always local-first.
         var remoteState=data.state||data;
         var changed=false;
         CONFIG.CHORES.forEach(function(c){
           var people=CONFIG.ASSIGNMENTS[c.id]||[];
           people.forEach(function(p){
-            var remoteVal=!!(remoteState[c.id]&&remoteState[c.id][p]);
-            var localVal=!!(state[c.id]&&state[c.id][p]);
-            if(remoteVal!==localVal){
+            var remoteChecked=!!(remoteState[c.id]&&remoteState[c.id][p]);
+            var localChecked=!!(state[c.id]&&state[c.id][p]);
+            if(remoteChecked && !localChecked){
+              // Someone else checked this — pull it in
               if(!state[c.id]) state[c.id]={};
-              state[c.id][p]=remoteVal; changed=true;
+              state[c.id][p]=true; changed=true;
             }
+            // If local=true and remote=false: keep local (write may not have synced yet)
           });
         });
         if(changed){saveLocal();updateUI();}
