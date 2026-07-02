@@ -23,7 +23,7 @@ const CONFIG = {
   // ── APPS SCRIPT URL ────────────────────────────────────────────────────
   // Your deployed Apps Script Web App URL (ends in /exec).
   // Only needs changing if you create a brand-new deployment.
-  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbzDRdMVu0JBRNl6sefcvShMXHzABe1tNTGmn_Kt4orO7IZd1C6ZmLmPCAdX4HzQwMqn/exec",
+  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbwCiHYOdLgNFU0AONSu9hIfsylxcST4bchfae8-nzTWNlRdT0TDuG3fO_Q3OEzbmVnJ/exec",
 
   // ── ADMIN ──────────────────────────────────────────────────────────────
   // Your email — reply-to address on all outgoing lab emails.
@@ -67,15 +67,23 @@ const CONFIG = {
   // ── INCUBATORS ─────────────────────────────────────────────────────────
   // Staggered cleaning cycle: 2 units per week over 4 weeks, run every
   // March, July, and November. Week 1 begins the first Monday of that month.
+  // Each pair has assigned people (both must check in). Weeks 1–3 share one
+  // crew across both units; Week 4 splits crews per-unit (#7 / #8) since
+  // it carries extra people this cycle.
   INCUBATORS: {
     units: ["#1","#2","#3","#4","#5","#6","#7","#8"],
     scheduleReady: true,
     activeMonths: [3, 7, 11],   // March, July, November
     pairs: [
-      { week: 1, units: ["#1", "#2"] },
-      { week: 2, units: ["#3", "#4"] },
-      { week: 3, units: ["#5", "#6"] },
-      { week: 4, units: ["#7", "#8"] }
+      { week: 1, units: ["#1", "#2"], people: ["Maria", "Ankit"] },
+      { week: 2, units: ["#3", "#4"], people: ["Sujith", "Maureen"] },
+      { week: 3, units: ["#5", "#6"], people: ["Kayla", "Lidia"] },
+      { week: 4, units: ["#7", "#8"],
+        unitPeople: {
+          "#7": ["Liz", "Yash", "Lorelei"],
+          "#8": ["Wilbert", "Blayne"]
+        }
+      }
     ]
   },
 
