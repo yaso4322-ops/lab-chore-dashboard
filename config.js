@@ -23,7 +23,7 @@ const CONFIG = {
   // ── APPS SCRIPT URL ────────────────────────────────────────────────────
   // Your deployed Apps Script Web App URL (ends in /exec).
   // Only needs changing if you create a brand-new deployment.
-  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbxBwwA1Ml7wb8u9VndxZU7VTz7J3gQDMx4Dj8a26Utaw9LdBur4qlNQHsWAaeeOpX6D/exec",
+  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbwCiHYOdLgNFU0AONSu9hIfsylxcST4bchfae8-nzTWNlRdT0TDuG3fO_Q3OEzbmVnJ/exec",
 
   // ── ADMIN ──────────────────────────────────────────────────────────────
   // Your email — reply-to address on all outgoing lab emails.
@@ -32,14 +32,18 @@ const CONFIG = {
   // ── CHORE ASSIGNMENTS ──────────────────────────────────────────────────
   // Update the people arrays when reshuffling (~every 3 months).
   // The IDs (left side) must not be renamed — they link to the dashboard.
+  //
+  // NOTE: consolidated on Jul 2026 — old "ln2", "distilled", and "recycling"
+  // chores were merged into "carboys-water" and "facilities" below.
+  // Assignments for the two new chores are PENDING until the roster is
+  // reconfirmed and the reshuffle is run.
   ASSIGNMENTS: {
-    "autoclave":  ["Kayla", "Liz"],
-    "ln2":        ["Lorelei", "Ankit"],
-    "inventory":  ["Blayne", "Maria"],
-    "distilled":  ["Daniel E", "Lidia"],
-    "incubator":  ["Yash", "Maureen"],
-    "aliquots":   ["Sujith", "Daniel M"],
-    "recycling":  ["Wilbert"]
+    "autoclave":      ["Wilbert", "Maureen"],
+    "inventory":      ["Sujith"],
+    "incubator":      ["Ankit", "Lorelei"],
+    "aliquots":       ["Kayla", "Liz"],
+    "carboys-water":  ["Lidia", "Blayne"],
+    "facilities":     ["Maria", "Yash"]
   },
 
   // ── LAB MEMBERS ────────────────────────────────────────────────────────
@@ -49,8 +53,6 @@ const CONFIG = {
   MEMBERS: [
     { name: "Yash",     email: "Yashveer.Soni@colorado.edu" },
     { name: "Blayne",   email: "Blayne.Sarazin@Colorado.EDU" },
-    { name: "Daniel E", email: "Daniel.Estrin@colorado.edu" },
-    { name: "Daniel M", email: "Daniel.Martins@colorado.edu" },
     { name: "Liz",      email: "Elizabeth.George-1@colorado.edu" },
     { name: "Kayla",    email: "kayla.castillo-aguilar@colorado.edu" },
     { name: "Sujith",   email: "SujithChanderReddy.Kollampally@colorado.edu" },
@@ -63,18 +65,18 @@ const CONFIG = {
   ],
 
   // ── INCUBATORS ─────────────────────────────────────────────────────────
-  // Set scheduleReady: true and fill in schedule once the lab settles on a cadence.
-  // frequencyWeeks: how often each unit should be cleaned (e.g. 4 = monthly).
+  // Staggered cleaning cycle: 2 units per week over 4 weeks, run every
+  // March, July, and November. Week 1 begins the first Monday of that month.
   INCUBATORS: {
     units: ["#1","#2","#3","#4","#5","#6","#7","#8"],
-    scheduleReady: false,
-    schedule: []
-    // Example once ready:
-    // schedule: [
-    //   { unit: "#1", frequencyWeeks: 4, lastCleaned: "2026-06-01" },
-    //   { unit: "#2", frequencyWeeks: 4, lastCleaned: "2026-06-01" },
-    //   ...
-    // ]
+    scheduleReady: true,
+    activeMonths: [3, 7, 11],   // March, July, November
+    pairs: [
+      { week: 1, units: ["#1", "#2"] },
+      { week: 2, units: ["#3", "#4"] },
+      { week: 3, units: ["#5", "#6"] },
+      { week: 4, units: ["#7", "#8"] }
+    ]
   },
 
   // ── CHORE DETAILS ──────────────────────────────────────────────────────
@@ -94,17 +96,6 @@ const CONFIG = {
       ]
     },
     {
-      id: "ln2",
-      name: "LN2 & Water Bath",
-      icon: "❄️",
-      blurb: "Keep both liquid-nitrogen tanks supplied and the water baths clean.",
-      steps: [
-        "Maintain two LN2 tanks — always keep one full backup.",
-        "Follow the LN2 ordering instructions on the Lab Drive; initial the log for each fill.",
-        "Clean the Bio/Chem water bath monthly."
-      ]
-    },
-    {
       id: "inventory",
       name: "Inventory",
       icon: "📦",
@@ -112,17 +103,6 @@ const CONFIG = {
       steps: [
         "Put away inventory as it's received.",
         "Restock supplies in the lab cabinets (map on the back of the office door)."
-      ]
-    },
-    {
-      id: "distilled",
-      name: "Distilled Water & Facilities",
-      icon: "💧",
-      blurb: "Keep distilled water flowing and shared spaces clean.",
-      steps: [
-        "Refill the distilled-water carboy and run the tabletop distiller; initial for each run.",
-        "TC hood & floor cleaning — monthly. Blower must be on if the sash is open.",
-        "Collect lab coats on Tuesdays for laundry."
       ]
     },
     {
@@ -138,24 +118,36 @@ const CONFIG = {
     },
     {
       id: "aliquots",
-      name: "Aliquots & Waste",
-      icon: "☣️",
-      blurb: "Restock frozen reagents and clear puncture-proof waste.",
+      name: "Aliquots",
+      icon: "🧊",
+      blurb: "Restock frozen reagents so the lab never runs short mid-experiment.",
       steps: [
         "Restock frozen aliquots: FBS Prem./Prem. Sel. (25 mL), P/S 100× (10 mL), Amp. B 100× (10 mL), Trypsin (10 mL).",
-        "Initial the log for each restock.",
-        "Dispose puncture-proof waste at the loading-dock dumpster."
+        "Initial the log for each restock."
       ]
     },
     {
-      id: "recycling",
-      name: "Recycling & Carboys",
-      icon: "♻️",
-      blurb: "Run recycling routes and keep the cleaning carboys topped up.",
+      id: "carboys-water",
+      name: "Carboys, Distilled Water & Water Bath",
+      icon: "💧",
+      blurb: "Keep the lab's water systems and cleaning carboys topped up and running.",
       steps: [
-        "Main hall: corrugated cardboard, styrofoam, pipette-tip boxes.",
-        "Loading dock: metal & misc. · D-wing hall: paper & plastic film.",
+        "Refill the distilled-water carboy and run the tabletop distiller; initial for each run.",
+        "Clean the Bio/Chem water bath monthly.",
         "Check/replenish carboys: 70% EtOH, non-sterile PBS, Alconox (10 g/L)."
+      ]
+    },
+    {
+      id: "facilities",
+      name: "Facilities",
+      icon: "🧹",
+      blurb: "Cover the lab-wide upkeep tasks that keep everything running smoothly.",
+      steps: [
+        "Maintain two LN2 tanks — always keep one full backup. Follow the ordering instructions on the Lab Drive and initial the log for each fill.",
+        "TC hood & floor cleaning — monthly. Blower must be on if the sash is open.",
+        "Collect lab coats on Tuesdays for laundry.",
+        "Recycling: main hall (cardboard, styrofoam, pipette-tip boxes) · loading dock (metal & misc.) · D-wing hall (paper & plastic film).",
+        "Dispose puncture-proof waste at the loading-dock dumpster."
       ]
     }
   ],
